@@ -10,6 +10,7 @@ class RippleWindowController {
     private let vertexBuffer: MTLBuffer
     private var activeWindows: [NSWindow] = []
     private var scContent: SCShareableContent?
+    private var openedSettings = false
 
     private static let captureSize: CGFloat = 300
 
@@ -78,13 +79,11 @@ class RippleWindowController {
         pipelineState = ps
         vertexBuffer = vb
 
-        // Fetch SCShareableContent once at launch. If it fails, open Screen Recording
-        // settings — the user must grant access there; we never prompt on a click.
         Task { @MainActor in
             if let content = try? await SCShareableContent.current {
                 self.scContent = content
             } else {
-                NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
+                self.openSettingsOnce()
             }
         }
     }
@@ -116,6 +115,13 @@ class RippleWindowController {
 
     // MARK: - Private
 
+    @MainActor
+    private func openSettingsOnce() {
+        guard !openedSettings else { return }
+        openedSettings = true
+        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
+    }
+
     private func captureRegion(around point: NSPoint) async -> (image: CGImage, frame: NSRect)? {
         let size = Self.captureSize
         let screen = NSScreen.screens.first { $0.frame.contains(point) } ?? NSScreen.main!
@@ -124,11 +130,20 @@ class RippleWindowController {
 
         guard let displayID = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID else { return nil }
 
-        // Use cached content only — never call SCShareableContent.current on a click,
-        // which would trigger a permission dialog mid-interaction.
-        guard let content = scContent,
-              let scDisplay = content.displays.first(where: { $0.displayID == displayID })
-        else { return nil }
+        // Use cached content. If nil (permission was granted after launch), fetch once
+        // and cache. On failure, direct to System Settings at most one time.
+        let content: SCShareableContent
+        if let cached = scContent {
+            content = cached
+        } else if let fresh = try? await SCShareableContent.current {
+            scContent = fresh
+            content = fresh
+        } else {
+            await MainActor.run { openSettingsOnce() }
+            return nil
+        }
+
+        guard let scDisplay = content.displays.first(where: { $0.displayID == displayID }) else { return nil }
 
         // SCKit sourceRect uses top-left origin per display.
         // NSScreen uses bottom-left, so we flip Y: displayY = screenHeight - localY.
