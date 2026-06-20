@@ -11,6 +11,7 @@ class RippleWindowController {
     private var activeWindows: [NSWindow] = []
     private var scContent: SCShareableContent?
     private var openedSettings = false
+    private var activationObserver: NSObjectProtocol?
 
     private static let captureSize: CGFloat = 300
 
@@ -79,12 +80,24 @@ class RippleWindowController {
         pipelineState = ps
         vertexBuffer = vb
 
-        Task { @MainActor in
-            if let content = try? await SCShareableContent.current {
-                self.scContent = content
-            } else {
-                self.openSettingsOnce()
-            }
+        // Try once at launch. If it fails (permission not yet granted), open Settings.
+        // After the user grants and switches back to any app, the observer below retries
+        // silently — no dialog ever fires from a click.
+        Task { @MainActor in await self.fetchSCContent() }
+
+        activationObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self, self.scContent == nil else { return }
+            Task { @MainActor in await self.fetchSCContent() }
+        }
+    }
+
+    deinit {
+        if let obs = activationObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(obs)
         }
     }
 
@@ -116,10 +129,14 @@ class RippleWindowController {
     // MARK: - Private
 
     @MainActor
-    private func openSettingsOnce() {
-        guard !openedSettings else { return }
-        openedSettings = true
-        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
+    private func fetchSCContent() async {
+        guard scContent == nil else { return }
+        if let content = try? await SCShareableContent.current {
+            scContent = content
+        } else if !openedSettings {
+            openedSettings = true
+            NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
+        }
     }
 
     private func captureRegion(around point: NSPoint) async -> (image: CGImage, frame: NSRect)? {
@@ -130,20 +147,11 @@ class RippleWindowController {
 
         guard let displayID = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID else { return nil }
 
-        // Use cached content. If nil (permission was granted after launch), fetch once
-        // and cache. On failure, direct to System Settings at most one time.
-        let content: SCShareableContent
-        if let cached = scContent {
-            content = cached
-        } else if let fresh = try? await SCShareableContent.current {
-            scContent = fresh
-            content = fresh
-        } else {
-            await MainActor.run { openSettingsOnce() }
-            return nil
-        }
-
-        guard let scDisplay = content.displays.first(where: { $0.displayID == displayID }) else { return nil }
+        // Only use the cached value — never call SCShareableContent.current here.
+        // The activation observer handles the retry after the user grants permission.
+        guard let content = scContent,
+              let scDisplay = content.displays.first(where: { $0.displayID == displayID })
+        else { return nil }
 
         // SCKit sourceRect uses top-left origin per display.
         // NSScreen uses bottom-left, so we flip Y: displayY = screenHeight - localY.
