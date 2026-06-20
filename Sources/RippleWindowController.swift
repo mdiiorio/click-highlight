@@ -78,10 +78,14 @@ class RippleWindowController {
         pipelineState = ps
         vertexBuffer = vb
 
-        // Fetch SCShareableContent once at launch — triggers the permission dialog now
-        // and caches the result so clicks never need to call it again.
+        // Fetch SCShareableContent once at launch. If it fails, open Screen Recording
+        // settings — the user must grant access there; we never prompt on a click.
         Task { @MainActor in
-            self.scContent = try? await SCShareableContent.current
+            if let content = try? await SCShareableContent.current {
+                self.scContent = content
+            } else {
+                NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
+            }
         }
     }
 
@@ -120,18 +124,11 @@ class RippleWindowController {
 
         guard let displayID = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID else { return nil }
 
-        // Use cached content; fall back to a fresh fetch only if not yet available
-        let content: SCShareableContent
-        if let cached = scContent {
-            content = cached
-        } else if let fresh = try? await SCShareableContent.current {
-            scContent = fresh
-            content = fresh
-        } else {
-            return nil
-        }
-
-        guard let scDisplay = content.displays.first(where: { $0.displayID == displayID }) else { return nil }
+        // Use cached content only — never call SCShareableContent.current on a click,
+        // which would trigger a permission dialog mid-interaction.
+        guard let content = scContent,
+              let scDisplay = content.displays.first(where: { $0.displayID == displayID })
+        else { return nil }
 
         // SCKit sourceRect uses top-left origin per display.
         // NSScreen uses bottom-left, so we flip Y: displayY = screenHeight - localY.
