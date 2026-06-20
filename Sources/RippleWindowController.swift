@@ -9,6 +9,7 @@ class RippleWindowController {
     private let pipelineState: MTLRenderPipelineState
     private let vertexBuffer: MTLBuffer
     private var activeWindows: [NSWindow] = []
+    private var scContent: SCShareableContent?
 
     private static let captureSize: CGFloat = 300
 
@@ -77,8 +78,11 @@ class RippleWindowController {
         pipelineState = ps
         vertexBuffer = vb
 
-        // Pre-warm SCKit at launch so the permission dialog appears now, not on first click
-        Task { _ = try? await SCShareableContent.current }
+        // Fetch SCShareableContent once at launch — triggers the permission dialog now
+        // and caches the result so clicks never need to call it again.
+        Task { @MainActor in
+            self.scContent = try? await SCShareableContent.current
+        }
     }
 
     func showRipple(at location: NSPoint) {
@@ -114,10 +118,20 @@ class RippleWindowController {
         let scale = screen.backingScaleFactor
         let halfSize = size / 2
 
-        guard let displayID = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID,
-              let content = try? await SCShareableContent.current,
-              let scDisplay = content.displays.first(where: { $0.displayID == displayID })
-        else { return nil }
+        guard let displayID = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID else { return nil }
+
+        // Use cached content; fall back to a fresh fetch only if not yet available
+        let content: SCShareableContent
+        if let cached = scContent {
+            content = cached
+        } else if let fresh = try? await SCShareableContent.current {
+            scContent = fresh
+            content = fresh
+        } else {
+            return nil
+        }
+
+        guard let scDisplay = content.displays.first(where: { $0.displayID == displayID }) else { return nil }
 
         // SCKit sourceRect uses top-left origin per display.
         // NSScreen uses bottom-left, so we flip Y: displayY = screenHeight - localY.

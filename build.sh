@@ -24,6 +24,9 @@ swiftc \
 
 cp Info.plist "$APP_BUNDLE/Contents/Info.plist"
 
+# Ad-hoc signature so macOS TCC can store permission grants persistently
+codesign --force --deep --sign - "$APP_BUNDLE"
+
 echo ""
 echo "Built: $APP_BUNDLE"
 echo "Run:   open '$APP_BUNDLE'"
