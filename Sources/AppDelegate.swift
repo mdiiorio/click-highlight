@@ -3,7 +3,7 @@ import Cocoa
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private var eventMonitor: Any?
-    private let rippleController = RippleWindowController()
+    private let rippleController: RippleWindowController? = RippleWindowController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         requestAccessibilityIfNeeded()
@@ -34,7 +34,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func setupEventMonitor() {
         eventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
-            self?.rippleController.showRipple(at: NSEvent.mouseLocation)
+            self?.rippleController?.showRipple(at: NSEvent.mouseLocation)
         }
     }
 }

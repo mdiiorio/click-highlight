@@ -14,10 +14,11 @@ swiftc \
     Sources/main.swift \
     Sources/AppDelegate.swift \
     Sources/RippleWindowController.swift \
-    Sources/RippleView.swift \
+    Sources/RippleMetalView.swift \
     -o "$MACOS_DIR/click-highlight" \
     -framework Cocoa \
-    -framework QuartzCore \
+    -framework Metal \
+    -framework MetalKit \
     -sdk "$(xcrun --show-sdk-path)" \
     -O
 
