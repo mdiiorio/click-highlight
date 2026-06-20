@@ -10,7 +10,7 @@ class RippleWindowController {
     private let vertexBuffer: MTLBuffer
     private var activeWindows: [NSWindow] = []
 
-    private static let captureSize: CGFloat = 600
+    private static let captureSize: CGFloat = 300
 
     private static let shaderSource = """
     #include <metal_stdlib>
@@ -119,13 +119,14 @@ class RippleWindowController {
               let scDisplay = content.displays.first(where: { $0.displayID == displayID })
         else { return nil }
 
-        // Convert click to display-local coordinates.
-        // SCKit sourceRect uses bottom-left origin per display, matching NSScreen.frame convention.
+        // SCKit sourceRect uses top-left origin per display.
+        // NSScreen uses bottom-left, so we flip Y: displayY = screenHeight - localY.
         let localX = point.x - screen.frame.minX
         let localY = point.y - screen.frame.minY
+        let displayY = screen.frame.height - localY
         let sourceRect = CGRect(
-            x: max(0, localX - halfSize),
-            y: max(0, localY - halfSize),
+            x: min(max(localX - halfSize, 0), screen.frame.width - size),
+            y: min(max(displayY - halfSize, 0), screen.frame.height - size),
             width: size,
             height: size
         )
