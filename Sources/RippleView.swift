@@ -4,8 +4,8 @@ import QuartzCore
 class RippleView: NSView {
     private let ringCount = 3
     private let maxRadius: CGFloat = 110
-    private let stagger: CFTimeInterval = 0.13
-    private let ringDuration: CFTimeInterval = 0.8
+    private let stagger: CFTimeInterval = 0.11
+    private let ringDuration: CFTimeInterval = 0.65
 
     override init(frame: NSRect) {
         super.init(frame: frame)
