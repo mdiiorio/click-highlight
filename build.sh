@@ -14,18 +14,14 @@ swiftc \
     Sources/main.swift \
     Sources/AppDelegate.swift \
     Sources/RippleWindowController.swift \
-    Sources/RippleMetalView.swift \
+    Sources/RippleView.swift \
     -o "$MACOS_DIR/click-highlight" \
     -framework Cocoa \
-    -framework Metal \
-    -framework MetalKit \
     -sdk "$(xcrun --show-sdk-path)" \
     -O
 
 cp Info.plist "$APP_BUNDLE/Contents/Info.plist"
 
-# Sign with local certificate so TCC stores permissions stably across rebuilds.
-# Run ./setup-cert.sh once first to create the certificate.
 codesign --force --deep --sign "click-highlight-dev" "$APP_BUNDLE"
 
 echo ""
