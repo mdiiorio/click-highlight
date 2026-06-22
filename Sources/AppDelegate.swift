@@ -3,23 +3,28 @@ import Cocoa
 class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private var eventMonitor: Any?
+    private var keyboardMonitor: Any?
     private let rippleController = RippleWindowController()
+    private let keystrokeOverlay = KeystrokeOverlay()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         requestAccessibilityIfNeeded()
+        requestInputMonitoringIfNeeded()
         setupMenuBar()
         setupEventMonitor()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        if let monitor = eventMonitor {
-            NSEvent.removeMonitor(monitor)
-        }
+        [eventMonitor, keyboardMonitor].compactMap { $0 }.forEach { NSEvent.removeMonitor($0) }
     }
 
     private func requestAccessibilityIfNeeded() {
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
         AXIsProcessTrustedWithOptions(options)
+    }
+
+    private func requestInputMonitoringIfNeeded() {
+        CGRequestListenEventAccess()
     }
 
     private func setupMenuBar() {
@@ -35,6 +40,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func setupEventMonitor() {
         eventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
             self?.rippleController.showRipple(at: NSEvent.mouseLocation)
+        }
+        keyboardMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            self?.keystrokeOverlay.show(event: event)
         }
     }
 }

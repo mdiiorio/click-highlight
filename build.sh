@@ -15,6 +15,7 @@ swiftc \
     Sources/AppDelegate.swift \
     Sources/RippleWindowController.swift \
     Sources/RippleView.swift \
+    Sources/KeystrokeOverlay.swift \
     -o "$MACOS_DIR/click-highlight" \
     -framework Cocoa \
     -sdk "$(xcrun --show-sdk-path)" \
@@ -22,7 +23,8 @@ swiftc \
 
 cp Info.plist "$APP_BUNDLE/Contents/Info.plist"
 
-codesign --force --deep --sign "click-highlight-dev" "$APP_BUNDLE"
+CODESIGN_IDENTITY="${CODESIGN_IDENTITY:-click-highlight-dev}"
+codesign --force --deep --sign "$CODESIGN_IDENTITY" "$APP_BUNDLE"
 
 echo ""
 echo "Built: $APP_BUNDLE"

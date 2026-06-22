@@ -20,7 +20,7 @@
     <true/>
     <key>NSHighResolutionCapable</key>
     <true/>
-    <key>NSScreenCaptureUsageDescription</key>
-    <string>Click Highlight captures the screen at each click to render the water ripple effect.</string>
+    <key>NSInputMonitoringUsageDescription</key>
+    <string>Click Highlight displays keys on screen for presentation and screencasting.</string>
 </dict>
 </plist>
