@@ -41,7 +41,7 @@ class RippleView: NSView {
 
     private func addDot(to layer: CALayer, center: CGPoint) {
         let dot = CAShapeLayer()
-        dot.fillColor = NSColor.white.withAlphaComponent(0.9).cgColor
+        dot.fillColor = NSColor(red: 1.0, green: 0.45, blue: 0.0, alpha: 0.9).cgColor
         dot.path = circlePath(center: center, radius: 4)
         layer.addSublayer(dot)
 
@@ -59,7 +59,7 @@ class RippleView: NSView {
                          opacity: Float, lineWidth: CGFloat) {
         let ring = CAShapeLayer()
         ring.fillColor = NSColor.clear.cgColor
-        ring.strokeColor = NSColor.white.cgColor
+        ring.strokeColor = NSColor(red: 1.0, green: 0.45, blue: 0.0, alpha: 1.0).cgColor
         ring.lineWidth = lineWidth
         ring.opacity = 0
         ring.path = circlePath(center: center, radius: maxRadius)
